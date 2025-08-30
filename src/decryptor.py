@@ -5,10 +5,23 @@ from PyQt6.QtGui import QColor, QPalette
 import shamirs
 import json
 import itertools
+import base64
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.exceptions import InvalidSignature
 
 PROJECT_NAME = '[projectname]'
 # BG_COLOUR = QColor('black')
 # TEXT_COLOUR = QColor('green')
+PRIME_MODULUS = 9531*2**9531-1 # 2874-digit prime, larger than 256**1024 # (previously: 4122429552750669*2**16567+1 # 5003-digit prime, larger than 256**2048)
+
+# obviously update this later
+with open("data/private_key.pem", "rb") as key_file:
+    PRIVATE_KEY = serialization.load_pem_private_key(key_file.read(), password=None)
+with open("data/public_key.pem", "rb") as key_file:
+    PUBLIC_KEY = serialization.load_pem_public_key(key_file.read())
 
 shamirs.share.__eq__ = lambda self, other: self.index == other.index and self.value == other.value and self.modulus == other.modulus
 
@@ -43,24 +56,33 @@ class DecryptorMainWindow(QMainWindow):
         # Set the central widget of the Window.
         self.setCentralWidget(central_widget)
 
-    def addSecret(self, secret):
+    def addSecret(self, secret_int):
+        try:
+            secret_json = json.loads(int_to_string(secret_int))
+            secret = secret_json['secret']
+            sig = base64.b64decode(secret_json['signature'])
+        except Exception as e:
+            print(e) # invalid formatting
+            return
+        try:
+            PUBLIC_KEY.verify(sig, secret.encode(), padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH), hashes.SHA256())
+        except InvalidSignature:
+            self.messageBox("found a secret, but it doesn't have a valid {PROJECT_NAME} signature - the data may be tampered with or corrupted", 'signature warning')
         new_secret_box = SecretBox(secret)
         self.secrets_layout.addWidget(new_secret_box)
         self.secrets[secret] = new_secret_box
 
     def addKey(self, key_string):
         try:
-            key_data = json.loads(key_string)
+            key_data = json.loads(base64.b64decode(key_string).decode('utf-8'))
             key = shamirs.share(index = key_data['index'],
-                                value = key_data['value'],
-                                modulus = key_data['modulus'])
+                                value = base64_to_int(key_data['value']),
+                                modulus = PRIME_MODULUS)
         except Exception as e:
             self.messageBox(f'not a valid {PROJECT_NAME} key', 'invalid key')
             return False
 
-        print(key)
         for other_key in self.keys:
-            print(other_key)
             if other_key == key:
                 self.messageBox('you already have that key', 'key already present')
                 return False
@@ -86,11 +108,9 @@ class DecryptorMainWindow(QMainWindow):
     def checkForSecrets(self, new_key):
         for quantity in range(len(self.keys)+1):
             for combo in itertools.combinations(self.keys, quantity):
-                print(f"checking {[share.index for share in list(combo) + [new_key]]}")
                 try:
                     new_secret = shamirs.interpolate(list(combo) + [new_key])
-                    self.addSecret(str(new_secret))
-                    print(f"found {new_secret}")
+                    self.addSecret(new_secret)
                 except Exception as e:
                     print(e)
                     pass
@@ -159,10 +179,23 @@ class Colour(QWidget):
         palette.setColor(QPalette.ColorRole.Window, QColor(color))
         self.setPalette(palette)
 
+def string_to_int(string):
+    return int.from_bytes(string.encode('utf-8'), 'little')
 
-def make_json_shares():
-    shares = shamirs.shares(3, 3, 10)
-    print([f'{{"index": {share.index}, "value": {share.value}, "modulus": {share.modulus} }}' for share in shares])
+def int_to_string(integer):
+    return integer.to_bytes((integer.bit_length() + 7) // 8, 'little').decode('utf-8')
+
+def int_to_base64(integer):
+    return base64.b64encode(integer.to_bytes((integer.bit_length()+7)//8,'little')).decode('utf-8')
+
+def base64_to_int(b64str):
+    return int.from_bytes(base64.b64decode(b64str), 'little')
+
+def make_json_shares(value):
+    sig = base64.b64encode(PRIVATE_KEY.sign(value.encode(), padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH), hashes.SHA256())).decode('utf-8')
+    shares = shamirs.shares(string_to_int(f'{{"secret": "{value}", "signature": "{sig}"}}'), quantity = 2, modulus = PRIME_MODULUS)
+    print(f'{{"secret": "{value}", "signature": "{sig}"}}')
+    return ([base64.b64encode(f'{{"index": {share.index}, "value": "{int_to_base64(share.value)}"}}'.encode('utf-8')).decode('utf-8') for share in shares])
 
 app = QApplication([])
 
