@@ -29,7 +29,7 @@ jobs:
       - name: build
         run: |
           python3 -m venv .
-          src bin/activate
+          source bin/activate
           cd src
           pip install -r requirements.txt
           pyinstaller decryptor.py
