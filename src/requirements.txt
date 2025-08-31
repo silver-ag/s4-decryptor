@@ -1,0 +1,14 @@
+altgraph==0.17.4
+cffi==1.17.1
+click==8.2.1
+cryptography==45.0.6
+lagrange==3.0.1
+packaging==25.0
+pycparser==2.22
+pyinstaller==6.15.0
+pyinstaller-hooks-contrib==2025.8
+PyQt6==6.9.1
+PyQt6-Qt6==6.9.1
+PyQt6_sip==13.10.2
+setuptools==80.9.0
+shamir-ss==0.2.3
