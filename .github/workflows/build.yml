@@ -44,6 +44,7 @@ jobs:
         run: |
           python3 -m venv .
           Scripts\Activate.ps1
+          python3 -m pip install --upgrade pip
           cd src
           pip install -r requirements.txt
           pyinstaller decryptor.py
