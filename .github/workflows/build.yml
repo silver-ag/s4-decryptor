@@ -40,10 +40,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: build
-        shell: cmd
+        shell: pwsh
         run: |
           python3 -m venv .
-          Scripts\activate.bat
+          Scripts\Activate.ps1
           cd src
           pip install -r requirements.txt
           pyinstaller decryptor.py
