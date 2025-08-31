@@ -36,3 +36,12 @@ BorderlessWidget {
 KeyBox {
 	width: 150px;
 }
+
+QTabBar::tab:selected { 
+	font-family: "Fira Code Medium";
+	background-color: #000000;
+	color: #20dd20;
+	border-color: #20dd20;
+	border-style: solid;
+	border-width: 2px;
+}

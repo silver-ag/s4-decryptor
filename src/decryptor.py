@@ -3,7 +3,7 @@
 # - add encryption window
 
 from PyQt6.QtCore import QSize, Qt, QTimer, QRunnable, QThreadPool, pyqtSlot, pyqtSignal, QObject, QRect
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPlainTextEdit, QTextEdit, QPushButton, QMessageBox, QSizePolicy, QDialog, QDialogButtonBox, QSpacerItem
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPlainTextEdit, QTextEdit, QPushButton, QMessageBox, QSizePolicy, QDialog, QDialogButtonBox, QSpacerItem, QTabWidget, QSpinBox
 from PyQt6.QtGui import QColor, QPalette, QFont, QFontDatabase
 
 import json
@@ -15,26 +15,18 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
 
 PROJECT_NAME = '[projectname]'
-PRIME_MODULUS = 9531*2**9531-1 # 2874-digit prime, larger than 256**1024 # (previously: 4122429552750669*2**16567+1 # 5003-digit prime, larger than 256**2048)
 
-try:
-    with open("data/private_key.pem", "rb") as key_file:
-        PRIVATE_KEY = serialization.load_pem_private_key(key_file.read(), password=None)
-except:
-    PRIVATE_KEY = None
-with open("data/public_key.pem", "rb") as key_file:
-    PUBLIC_KEY = serialization.load_pem_public_key(key_file.read())
-
-#shamirs.share.__eq__ = lambda self, other: self.index == other.index and self.value == other.value and self.modulus == other.modulus
-
-class Secret:
-    def __init__(self, text, keys_used):
-        self.text = text
-        self.keys_used = keys_used
-    def __hash__(self):
-        return hash(f'{self.text}|{self.keys_used}')
+#try:
+#    with open("data/private_key.pem", "rb") as key_file:
+#        PRIVATE_KEY = serialization.load_pem_private_key(key_file.read(), password=None)
+#except:
+#    PRIVATE_KEY = None
+#with open("data/public_key.pem", "rb") as key_file:
+#    PUBLIC_KEY = serialization.load_pem_public_key(key_file.read())
+#
 
 class Key:
     def __init__(self, index, chunks):
@@ -64,21 +56,18 @@ class DecryptorMainWindow(QMainWindow):
         super().__init__()
 
         self.keys = {} # key: keybox
-        self.secrets = {} # secret: secretbox
+        self.secret = '' # secret: secretbox
 
         self.popups_enabled = True
-        self.threadpool = QThreadPool()
+        self.threadpool = QThreadPool() # TODO - is this being used?
 
         self.setWindowTitle(f'{PROJECT_NAME} decryptor')
+        tabs = QTabWidget()
         top_layout = QVBoxLayout()
         title = BorderlessLabel(f'{PROJECT_NAME} decryptor')
         title.setStyleSheet('font-size: 30px')
         topbarlayout = QHBoxLayout()
         topbarlayout.addWidget(title)
-        if PRIVATE_KEY is not None:
-            topbarlayout.addSpacerItem(QSpacerItem(1, 1, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-            encryptbutton = QPushButton('encrypt')
-            topbarlayout.addWidget(encryptbutton)
         topbar = BorderlessWidget()
         topbar.setLayout(topbarlayout)
         top_layout.addWidget(topbar)
@@ -86,41 +75,112 @@ class DecryptorMainWindow(QMainWindow):
         self.secrets_widget = QLabel('loading ...')
         self.secrets_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.secrets_widget.setLayout(self.secrets_layout)
-        secrets_scroll_widget = QScrollArea()
-        secrets_scroll_widget.setWidget(self.secrets_widget)
-        secrets_scroll_widget.setWidgetResizable(True)
-        secrets_area_layout = QVBoxLayout()
-        secrets_area_layout.addWidget(BorderlessLabel('SECRETS'))
-        secrets_area_layout.addWidget(secrets_scroll_widget)
-        secrets_area = BorderlessWidget()
-        secrets_area.setLayout(secrets_area_layout)
-        top_layout.addWidget(secrets_area)
+        policy = self.secrets_widget.sizePolicy()
+        policy.setVerticalStretch(1)
+        self.secrets_widget.setSizePolicy(policy)
+        top_layout.addWidget(self.secrets_widget)
         self.keys_layout = QHBoxLayout()
-        self.keys_layout.addWidget(AddKeyBox())
-        keys_widget = QWidget()
+        keys_widget = BorderlessWidget()
         keys_widget.setLayout(self.keys_layout)
         keys_scroll_widget = QScrollArea()
         keys_scroll_widget.setWidget(keys_widget)
         keys_scroll_widget.setWidgetResizable(True)
-        keys_area_layout = QVBoxLayout()
-        keys_area_layout.addWidget(BorderlessLabel('KEYS'))
+        keys_area_layout = QHBoxLayout()
         keys_area_layout.addWidget(keys_scroll_widget)
-        keys_area = BorderlessWidget()
+        keys_area_layout.addWidget(AddKeyBox())
+        keys_area = QWidget()
         keys_area.setLayout(keys_area_layout)
+        policy = keys_area.sizePolicy()
+        policy.setVerticalStretch(1)
+        keys_area.setSizePolicy(policy)
         top_layout.addWidget(keys_area)
+        decrypt_central_widget = BorderlessWidget()
+        decrypt_central_widget.setLayout(top_layout)
+
+        top_layout = QVBoxLayout()
+        title = BorderlessLabel(f'{PROJECT_NAME} encryptor')
+        title.setStyleSheet('font-size: 30px')
+        topbarlayout = QHBoxLayout()
+        topbarlayout.addWidget(title)
+        topbar = BorderlessWidget()
+        topbar.setLayout(topbarlayout)
+        top_layout.addWidget(topbar)
+        secret_input_layout = QHBoxLayout()
+        self.secret_input_widget = QPlainTextEdit()
+        self.secret_input_widget.textChanged.connect(self.encrypt)
+        self.secret_input_widget.setLayout(secret_input_layout)
+        policy = self.secret_input_widget.sizePolicy()
+        policy.setVerticalStretch(1)
+        self.secret_input_widget.setSizePolicy(policy)
+        top_layout.addWidget(self.secret_input_widget)
+        self.encrypt_keys_layout = QHBoxLayout()
+        keys_widget = BorderlessWidget()
+        keys_widget.setLayout(self.encrypt_keys_layout)
+        keys_scroll_widget = QScrollArea()
+        keys_scroll_widget.setWidget(keys_widget)
+        keys_scroll_widget.setWidgetResizable(True)
+        keys_area_layout = QHBoxLayout()
+        keys_area_layout.addWidget(keys_scroll_widget)
+        number_input_layout = QVBoxLayout()
+        self.encrypt_num_shares = QSpinBox()
+        self.encrypt_num_shares.setRange(1,99)
+        self.encrypt_shares_needed = QSpinBox()
+        self.encrypt_shares_needed.setRange(1,99)
+        self.encrypt_num_shares.valueChanged.connect(self.encrypt)
+        self.encrypt_shares_needed.valueChanged.connect(self.encrypt)
+        self.encrypt_num_shares.valueChanged.connect(lambda v: self.encrypt_shares_needed.setRange(1,v))
+        number_input_layout.addWidget(BorderlessLabel('total keys'))
+        number_input_layout.addWidget(self.encrypt_num_shares)
+        number_input_layout.addWidget(BorderlessLabel('keys needed to decrypt'))
+        number_input_layout.addWidget(self.encrypt_shares_needed)
+        number_input = QWidget()
+        number_input.setLayout(number_input_layout)
+        keys_area_layout.addWidget(number_input)
+        keys_area = QWidget()
+        keys_area.setLayout(keys_area_layout)
+        policy = keys_area.sizePolicy()
+        policy.setVerticalStretch(1)
+        keys_area.setSizePolicy(policy)
+        top_layout.addWidget(keys_area)
+        encrypt_central_widget = BorderlessWidget()
+        encrypt_central_widget.setLayout(top_layout)
         
-        central_widget = QWidget()
-        central_widget.setLayout(top_layout)
-        # Set the central widget of the Window.
-        self.setCentralWidget(central_widget)
+        top_layout = QVBoxLayout()
+        title = BorderlessLabel(f'{PROJECT_NAME} verifier')
+        title.setStyleSheet('font-size: 30px')
+        topbarlayout = QHBoxLayout()
+        topbarlayout.addWidget(title)
+        topbar = BorderlessWidget()
+        topbar.setLayout(topbarlayout)
+        top_layout.addWidget(topbar)
+        verify_input_layout = QHBoxLayout()
+        self.verify_input_widget = QPlainTextEdit()
+        self.verify_input_widget.textChanged.connect(self.verify)
+        self.verify_input_widget.setLayout(secret_input_layout)
+        policy = self.verify_input_widget.sizePolicy()
+        policy.setVerticalStretch(1)
+        self.verify_input_widget.setSizePolicy(policy)
+        top_layout.addWidget(self.verify_input_widget)
+        self.verify_result_widget = QLabel()
+        self.verify_result_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        policy = self.verify_result_widget.sizePolicy()
+        policy.setVerticalStretch(1)
+        self.verify_result_widget.setSizePolicy(policy)
+        top_layout.addWidget(self.verify_result_widget)
+        verify_central_widget = BorderlessWidget()
+        verify_central_widget.setLayout(top_layout)
+
+        tabs.addTab(decrypt_central_widget, 'decrypt')
+        tabs.addTab(encrypt_central_widget, 'encrypt')
+        tabs.addTab(verify_central_widget, 'verify')
+        self.setCentralWidget(tabs)
         
         self.resize(640, 640)
 
     def addSecret(self, secret_str, keys_used):
         try:
-            print(secret_str)
             secret_json = json.loads(secret_str)
-            secret = Secret(secret_json['secret'], keys_used)
+            secret = base64.b64decode(secret_json['secret'].encode('utf-8')).decode('utf-8')
             #sig = base64.b64decode(secret_json['signature'])
         except Exception as e:
             print(f'addSecret: {e}')
@@ -129,16 +189,17 @@ class DecryptorMainWindow(QMainWindow):
         #    PUBLIC_KEY.verify(sig, secret.text.encode(), padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH), hashes.SHA256())
         #except InvalidSignature:
         #    self.messageBox("found a secret, but it doesn't have a valid {PROJECT_NAME} signature - the data may be tampered with or corrupted", 'signature warning')
-        new_secret_box = SecretBox(secret)
-        self.secrets_layout.addWidget(new_secret_box)
-        self.secrets[secret] = new_secret_box
+        #new_secret_box = SecretBox(secret)
+        #self.secrets_layout.addWidget(new_secret_box)
+        #self.secrets[secret] = new_secret_box
         self.viewSecretBox(secret)
+        self.secret = secret
+        self.secrets_widget.setText(secret)
 
     def addKey(self, key_string):
         try:
             key = Key.from_base64(key_string)
             key.number = len(self.keys)
-            print(key.number)
         except Exception as e:
             print(e)
             self.messageBox(f'not a valid {PROJECT_NAME} key', 'invalid key')
@@ -181,16 +242,17 @@ class DecryptorMainWindow(QMainWindow):
             if key.number > removed_number:
                 key.number -= 1
 
-    def removeSecret(self, secret):
-        self.secrets_layout.removeWidget(self.secrets[secret])
-        self.secrets[secret].deleteLater()
-        self.secrets.pop(secret)
+    def removeSecret(self):
+        #self.secrets_layout.removeWidget(self.secrets[secret])
+        #self.secrets[secret].deleteLater()
+        #self.secrets.pop(secret)
+        self.secret = 'no secret found yet'
+        self.secrets_widget.setText(self.secret)
 
     def checkForSecrets(self, new_key):
         for quantity in range(len(self.keys)+1):
             for combo in itertools.combinations(self.keys, quantity):
                 try:
-                    print([k.number for k in combo] + [new_key.number])
                     new_secret = decrypt_from_keys(list(combo) + [new_key])
                     self.addSecret(new_secret, list(combo) + [new_key])
                 except Exception as e:
@@ -199,8 +261,7 @@ class DecryptorMainWindow(QMainWindow):
 
     def regenerateExistingSecrets(self):
         self.popups_enabled = False
-        for secret in [s for s in self.secrets]:
-            self.removeSecret(secret)
+        self.removeSecret()
         for quantity in range(len(self.keys)):
             for combo in itertools.combinations(self.keys, quantity):
                 try:
@@ -216,21 +277,14 @@ class DecryptorMainWindow(QMainWindow):
         try:
             with open('data/saved_keys.json', 'r') as key_file:
                 existing_keys = json.load(key_file)
-                print(f'loading {len(existing_keys)} keys from file')
                 for key in existing_keys:
-                    print('adding from file')
                     self.addKey(key)
         except FileNotFoundError:
             with open('data/saved_keys.json', 'w+') as key_file: # create file if it doesn't exist
                 key_file.write('[]')
         self.popups_enabled = True
-        self.secrets_widget.setText('')
-
-    def isKeyUsed(self, key):
-        for secret in self.secrets:
-            if key in secret.keys_used:
-                return True
-        return False
+        if self.secret == '':
+            self.removeSecret()
 
     def messageBox(self, message, title):
         if self.popups_enabled:
@@ -240,12 +294,32 @@ class DecryptorMainWindow(QMainWindow):
             dlg.exec()
 
     def viewSecretBox(self, secret):
+        print(1)
         if self.popups_enabled:
             dlg = QMessageBox(self)
             dlg.setWindowTitle(f'{PROJECT_NAME} secret')
-            dlg.setText(f'{PROJECT_NAME} secret')
-            dlg.setInformativeText(secret.text)
+            dlg.setText(f'secret found')
+            #dlg.setInformativeText(secret)
             dlg.exec()
+
+    def encrypt(self):
+        secret = self.secret_input_widget.toPlainText()
+        quantity = self.encrypt_num_shares.value()
+        required = self.encrypt_shares_needed.value()
+        keys = [Key.from_base64(k) for k in make_keys(secret, required, quantity)]
+        for i in range(len(keys)):
+            keys[i].number = i
+        while self.encrypt_keys_layout.count():
+            child = self.encrypt_keys_layout.takeAt(0)
+            if child.widget():
+              child.widget().deleteLater()
+        for key in keys:
+            self.encrypt_keys_layout.addWidget(KeyBox(key))
+
+    def verify(self):
+        hasher = hashes.Hash(hashes.SHA256())
+        hasher.update(self.verify_input_widget.toPlainText().encode('utf-8'))
+        self.verify_result_widget.setText(hasher.finalize().hex())
 
 class BorderlessWidget(QWidget):
     pass
@@ -257,7 +331,7 @@ class SecretBox(QWidget):
     def __init__(self, secret):
         super().__init__()
         layout = QVBoxLayout()
-        textbox = QPlainTextEdit(secret.text)
+        textbox = QPlainTextEdit(secret)
         textbox.setReadOnly(True)
         numslinelayout = QHBoxLayout()
         for key in secret.keys_used:
@@ -266,7 +340,7 @@ class SecretBox(QWidget):
         numsline = BorderlessWidget()
         numsline.setLayout(numslinelayout)
         layout.addWidget(textbox)
-        layout.addWidget(numsline)
+        #layout.addWidget(numsline)
         self.setLayout(layout)
 
 class KeyBox(QWidget):
@@ -285,13 +359,10 @@ class KeyBox(QWidget):
         layout.addWidget(topbar)
         textbox = QPlainTextEdit(key.b64str())
         textbox.setReadOnly(True)
-        textbox.setMinimumSize(150,150)
+        self.setFixedWidth(200)
         layout.addWidget(textbox)
         self.setLayout(layout)
     def delete(self):
-        if self.window().isKeyUsed(self.key):
-            if not self.ConfirmDelete().exec():
-                return # don't delete
         self.window().removeKey(self.key)
     class ConfirmDelete(QDialog):
         def __init__(self):
@@ -317,7 +388,7 @@ class AddKeyBox(QWidget):
         add_button.clicked.connect(self.add_button_pressed)
         self.text_box = QPlainTextEdit()
         self.text_box.setPlaceholderText('paste a new key here')
-        self.text_box.setMinimumSize(150,150)
+        self.setFixedWidth(200)
         layout = QVBoxLayout()
         layout.addWidget(self.text_box)
         layout.addWidget(add_button)
@@ -351,9 +422,13 @@ def base64_to_int(b64str):
     return int.from_bytes(base64.b64decode(b64str), 'little')
 
 def make_keys(value, required, quantity):
-    #sig = base64.b64encode(PRIVATE_KEY.sign(value.encode(), padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH), hashes.SHA256())).decode('utf-8')
-    keys = [Key(share[0], share[1]) for share in generate_text_shares(f'{{"secret": "{value}"}}', required, quantity)]
-    return [key.b64str() for key in keys]
+    try:
+        #sig = base64.b64encode(PRIVATE_KEY.sign(value.encode(), padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH), hashes.SHA256())).decode('utf-8')
+        keys = [Key(share[0], share[1]) for share in generate_text_shares(f'{{"secret": "{base64.b64encode(value.encode("utf-8")).decode("utf-8")}"}}', required, quantity)]
+        return [key.b64str() for key in keys]
+    except Exception as e: # happens briefly if the number of shares goes below the number needed
+        print(e)
+        return []
 
 def decrypt_from_keys(keys):
     return reconstruct_text_secret([key.library_format() for key in keys])
