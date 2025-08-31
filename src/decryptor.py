@@ -42,7 +42,7 @@ class Key:
             print(f'Key.from_base64: {e}')
             return None
     def b64str(self):
-        return base64.b64encode(f'{{"index": {self.index}, "chunks": ["{"\",\"".join([int_to_base64(self.chunks[i]) for i in range(len(self.chunks))])}"]}}'.encode('utf-8')).decode('utf-8')
+        return base64.b64encode(('{"index": ' + str(self.index) + ', "chunks": ["' + '","'.join([int_to_base64(self.chunks[i]) for i in range(len(self.chunks))]) + '"]}').encode('utf-8')).decode('utf-8')
     def library_format(self):
         return (self.index, self.chunks)
     def __eq__(self, other):
