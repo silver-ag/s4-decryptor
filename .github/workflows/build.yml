@@ -28,7 +28,7 @@ jobs:
       # Runs a single command using the runners shell
       - name: build
         run: |
-          sudo apt install libxcb-cursor0
+          sudo apt install libxcb-cursor0 libxcb1-dev
           python3 -m venv .
           source bin/activate
           cd src
