@@ -6,3 +6,4 @@ pyvenv.cfg
 src/build
 src/dist
 src/decryptor.spec
+src/data/saved_keys.json
