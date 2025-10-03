@@ -46,6 +46,7 @@ jobs:
           Scripts\Activate.ps1
           python3 -m pip install --upgrade pip
           cd src
+          pip install pyOpenSSL
           pip install -r requirements.txt
           pyinstaller decryptor.py
 
