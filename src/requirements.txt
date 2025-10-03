@@ -12,4 +12,5 @@ PyQt6-Qt6==6.9.1
 PyQt6_sip==13.10.2
 setuptools==80.9.0
 shamir-ss==0.2.3
+pyOpenSSL==25.3.0
 secrets==1.0.2
