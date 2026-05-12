@@ -43,12 +43,11 @@ jobs:
         shell: pwsh
         run: |
           python3 -m venv .
-          Scripts\Activate.ps1
           python3 -m pip install --upgrade pip
           cd src
-          pip install pyOpenSSL
+          pip install "Nuitka[app]"
           pip install -r requirements.txt
-          pyinstaller decryptor.py
+          nuitka --mode=onefile -o dist/decryptor.exe decryptor.py
 
       - uses: actions/upload-artifact@v4
         with:
