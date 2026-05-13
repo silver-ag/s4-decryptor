@@ -46,7 +46,7 @@ jobs:
           python3 -m pip install --upgrade pip
           cd src
           pip install "Nuitka[app]"
-          altgraph
+          pip install altgraph
           pip install cffi
           pip install click
           pip install cryptography
