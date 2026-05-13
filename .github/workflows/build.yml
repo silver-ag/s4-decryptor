@@ -61,7 +61,6 @@ jobs:
           pip install setuptools
           pip install shamir-ss
           pip install pyOpenSSL
-          pip install secrets
           nuitka --mode=onefile -o dist/decryptor.exe decryptor.py
 
       - uses: actions/upload-artifact@v4
