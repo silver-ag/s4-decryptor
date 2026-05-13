@@ -62,7 +62,7 @@ jobs:
           pip install shamir-ss
           pip install pyOpenSSL
           mkdir dist
-          nuitka --mode=standalone --enable-plugin=pyqt6 --assume-yes-for-downloads --follow-imports -o dist/decryptor.exe decryptor.py
+          nuitka --mode=standalone --enable-plugin=pyqt6 --assume-yes-for-downloads --follow-imports --output-folder-name=dist decryptor.py
 
       - uses: actions/upload-artifact@v4
         with:
