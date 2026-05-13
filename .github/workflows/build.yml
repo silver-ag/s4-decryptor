@@ -46,8 +46,22 @@ jobs:
           python3 -m pip install --upgrade pip
           cd src
           pip install "Nuitka[app]"
+          altgraph
+          pip install cffi
+          pip install click
+          pip install cryptography
+          pip install lagrange
+          pip install packaging
+          pip install pycparser
+          pip install pyinstaller
+          pip install pyinstaller-hooks-contrib
+          pip install PyQt6
+          pip install PyQt6-Qt6
+          pip install PyQt6_sip
+          pip install setuptools
+          pip install shamir-ss
           pip install pyOpenSSL
-          pip install -r requirements.txt
+          pip install secrets
           nuitka --mode=onefile -o dist/decryptor.exe decryptor.py
 
       - uses: actions/upload-artifact@v4
