@@ -61,6 +61,10 @@ jobs:
           pip install setuptools
           pip install shamir-ss
           pip install pyOpenSSL
+          
+          pip uninstall PyQt6 -y
+          pip install PyQt6
+          
           mkdir dist
           nuitka --mode=standalone --enable-plugin=pyqt6 --assume-yes-for-downloads --follow-imports --output-folder-name=dist decryptor.py
 
